@@ -30,7 +30,9 @@ An optional data source is available with the recently released [Udacity labeled
 
 [//]: # (Image References)
 
-[image1]: ./output_images/undistort_output.png "Calibration"
+[image1a]: ./output_images/spatial_bin.png "Spatial Binning"
+[image1b]: ./output_images/color_hist.png "Color Histogram"
+[image1c]: ./output_images/hog_features.png "hog features"
 
 The writeup / README should include a statement and supporting figures / images that explain how each rubric item was addressed, and specifically where in the code each step was handled.
 
@@ -57,16 +59,67 @@ Finally, opencv opens images as BGR not RGB by default, this required color spac
 + Color Histogram
 + Histogram of Oriented Gradients (HOG)
 
+The functions for extraction are found in feature_extraction.py and they are visualised and explored in feature_extraction.ipynb
+
 #### Spatial Binning
+
+The idea behind spatial binning is to take an input image and downsize it and then for each color channel to create a concatenated flattened array of pixel values.
+
+This reduces the number of pixels in the image but retains - in theory - enough information to enable the features that are generated from the downsized and flattened image to be used to differentiate objects in a machine learning algorithm.
+
+In the image below, run across a 64x64 RGB png image using a size of 32x32, the car and non-car images can still be deciphered by eye and the flattened array for each, in this case, shows a distinction between the 2 images:
+
+![alt text][image1a]
+
+It's possible to use different color spaces (will generate different patterns of pixel intensity) and different image sizes (will generate less output features as the size is reduced).
+
+By eye, it looked like using the YCrCb color space with a 32x32 size might be interesting but tuning would probably be best done by feeding various feature combinations into the machine learning model to trade off model accuracy and training time.
 
 #### Color Histogram
 
+The color histogram also generates a flattened array across all image channels fed into the function however in this function, the output is a histogram of pixel intensities in each channel.
+
+The tuning parameters for this function are the color space of the image and the number of bins to generate the histogram across. The bin range should relfect the extent of the image pixels.
+
+The idea behind using features from this function is that the color intensities of a car are likely to be different to the intensities of a non-car image. This can be seen in the image below, where 32 bins were applied across a YUV color space image:
+
+![alt text][image1b]
+
+Different color spaces have different histogram signatures and changing the bin size affects the number of discrete features extracted.
+
 #### HOG Features
 
-https://www.learnopencv.com/histogram-of-oriented-gradients/
+references:
++ http://lear.inrialpes.fr/people/triggs/pubs/Dalal-cvpr05.pdf
++ https://en.wikipedia.org/wiki/Histogram_of_oriented_gradients
++ https://www.learnopencv.com/histogram-of-oriented-gradients/
 
+From the wiki page: _The essential thought behind the histogram of oriented gradients descriptor is that local object appearance and shape within an image can be described by the distribution of intensity gradients or edge directions._
 
-Each of the extraction techniques, using the tuned parameters, were taken forward into the model building and tuning phases.
+The algorithm has 3 prime tuning parameters:
++ orientations: the number of histograms to generate over the range of gradient angles
++ pixels per cell: the number of pixels which make up a cell.
++ cells per block: the number of cells which make up a block.
+
+The visualisation below shows that for a YCrCb color space image using 8 pixels per cell and 2 cells per block and 9 orientations, the hog features extracted show a different pattern for the car versus the noncar image.
+
+![alt text][image1c]
+
+#### feature extraction summary
+
+Tuning across different parameter combinations and color spaces allows a subjective opinion to be made as to which combinations work best. As a starting point for model building, it looked like using all 3 techniques with the following parameters would be a good bet:
+
+color_space: YCrCb
+image size: 64x64 (as training data is already this size)
+pixel range: (0..1)
+
++ spatial binning size: 32x32
++ color histogram bins: 16
++ hog features parameters: all color channels, 9 orientations, 8 pixels per cell, 2 cells per block
+
+A function to iterate over the training data is included which creates a single array with each image's feature set for the extraction parameters above. For the training data we end up with 17760 training images, 8792 of which are cars and a feature vector per image of 8412 features.
+
+The extracted features were saved to data file so they could be loaded into model building without having to regenerate them.
 
 ### Model Building, Tuning, Selection and Saving
 
