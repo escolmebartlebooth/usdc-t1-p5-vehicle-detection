@@ -42,6 +42,7 @@ The writeup / README should include a statement and supporting figures / images 
 
 + feature_extraction.py: Contains functions to extract features from images for hog, spatial binning and color histograms
 + feature_extraction.ipynb: notebook visualisation the facets of the feature extraction functions across different parameters and color spaces
++ model_building.ipynb: notebook that fits different models to the training data and tries to tune each to establish a best fit model which can then be saved and reused for the prediction parameters
 
 ### Data Preparation and Feature Extraction
 
@@ -123,7 +124,39 @@ The extracted features were saved to data file so they could be loaded into mode
 
 ### Model Building, Tuning, Selection and Saving
 
-The HOG features extracted from the training data have been used to train a classifier, could be SVM, Decision Tree or other. Features should be scaled to zero mean and unit variance before training the classifier.
+#### Model setup
+
+The code for the model building can be found in the model_building.ipynb notebook.
+
+#### Initial modelling
+
+The saved training data from the feature_extraction notebook was loaded into memory and then 3 functions were created:
++ split and scale: to create a random shuffled train and test data set and to scale the training data to have zero mean and unit variance
++ build model: simply calling the model's fit method
++ test model: calling the fit model's score method
+
+The 3 classifiers chosen for analysis were:
++ Support Vector Machine (SVM): default settings showed an accuracy of 97.86%. Training time was quite long (using the pre-canned linearSVC was much quicker)
++ Gaussian Bayes: default setting showed an accuracy of 81.64%.
++ Decision Tree: the slowest to train but very quick to predict. Accuracy for the default settings was 94.76%
+
+On that basis, i chose the decision tree and svm to be the models to take forward into hyper-parameter tuning.
+
+#### hyper-parameter tuning
+
+The basis of hyper-parameter tuning is to cycle through combinations of parameters for each model. This is achieved by using a library function called GridSearchCV. This uses 5-fold cross-validation on each model parameter set and then calculates the best estimator from the score function used for each model.
+
+For SVM: We can tune the kernel, c and gamma parameters giving us a total of 16 combinations (more could be tried)...
+
+For Decision Tree: We can tune the criterion, max depth and min samples split parameters giving us 18 combinations....
+
+#### best model
+
+The best model after tuning was found to be ... with the following parameters:
++
++
+
+Using pickle, the best model was saved along with the feature extraction parameters and the standard scalar so that the prediction pipeline could recreate the image pre-processing and feature extraction approach, scale the pipeline images to the same scheme as the trained model and finally re-use the classifier's prediction method to predict which class the pipeline image belongs to
 
 ### Classifying Test Images
 
