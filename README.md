@@ -146,15 +146,14 @@ On that basis, i chose the decision tree and svm to be the models to take forwar
 
 The basis of hyper-parameter tuning is to cycle through combinations of parameters for each model. This is achieved by using a library function called GridSearchCV. This uses 5-fold cross-validation on each model parameter set and then calculates the best estimator from the score function used for each model.
 
-For SVM: We can tune the kernel, c and gamma parameters giving us a total of 16 combinations (more could be tried)...
+For SVM: We can tune the kernel, c and gamma parameters giving us a total of 16 combinations (more could be tried). The tuning using GridSearchCV has 5-fold cross-validation of the training data. The training time is roughly 300s x 5 x n, where n is the number of parameter combinations. This resulted in a search time of around 6 hours.
 
-For Decision Tree: We can tune the criterion, max depth and min samples split parameters giving us 18 combinations....
+For Decision Tree: We can tune the criterion, max depth and min samples split parameters giving us 18 combinations and an approximate search time of 7 to 8 hours.
 
 #### best model
 
-The best model after tuning was found to be ... with the following parameters:
-+
-+
+The best model after tuning was found to be LinearSVC with c =  and a classification accuracy of ...
+
 
 Using pickle, the best model was saved along with the feature extraction parameters and the standard scalar so that the prediction pipeline could recreate the image pre-processing and feature extraction approach, scale the pipeline images to the same scheme as the trained model and finally re-use the classifier's prediction method to predict which class the pipeline image belongs to
 
