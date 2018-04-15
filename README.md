@@ -90,7 +90,7 @@ The color histogram also generates a flattened array across all image channels f
 
 The tuning parameters for this function are the color space of the image and the number of bins to generate the histogram across. The bin range should relfect the extent of the image pixels.
 
-The idea behind using features from this function is that the color intensities of a car are likely to be different to the intensities of a non-car image. This can be seen in the image below, where 32 bins were applied across a YUV color space image:
+The idea behind using features from this function is that the color intensities of a car are likely to be different to the intensities of a non-car image. This can be seen in the image below, where 32 bins were applied across a YCrCb color space image:
 
 ![alt text][image1b]
 
@@ -225,5 +225,4 @@ It looks also as if different lighting / weather conditions would cause failures
 A number of potential Improvements would be to:
 + parallel processing of the multiple scales and also the lane detection to achieve near realtime frame processing
 + increase the training data set and account better for the time-series images in the GTI data and also widen the classification to include different types of object
-+
 
