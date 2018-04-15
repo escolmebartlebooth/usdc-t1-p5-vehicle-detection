@@ -33,8 +33,14 @@ An optional data source is available with the recently released [Udacity labeled
 [image1a]: ./output_images/spatial_bin.png "Spatial Binning"
 [image1b]: ./output_images/color_hist.png "Color Histogram"
 [image1c]: ./output_images/hog_features.png "hog features"
+[image2a]: ./output_images/test1.png "pipeline image 1"
+[image2b]: ./output_images/test2.png "pipeline image 2"
+[image2c]: ./output_images/test3.png "pipeline image 3"
+[image2d]: ./output_images/test4.png "pipeline image 4"
+[image2e]: ./output_images/test5.png "pipeline image 5"
+[image2f]: ./output_images/test6.png "pipeline image 6"
+[video1]: ./project_video_output.mp4 "Video"
 
-The writeup / README should include a statement and supporting figures / images that explain how each rubric item was addressed, and specifically where in the code each step was handled.
 
 ## Implementation
 
@@ -43,6 +49,8 @@ The writeup / README should include a statement and supporting figures / images 
 + feature_extraction.py: Contains functions to extract features from images for hog, spatial binning and color histograms
 + feature_extraction.ipynb: notebook visualisation the facets of the feature extraction functions across different parameters and color spaces
 + model_building.ipynb: notebook that fits different models to the training data and tries to tune each to establish a best fit model which can then be saved and reused for the prediction parameters
++ vehicle_detection.ipynb: notebook where the pipeline was tested on static and video images and where the pipeline class was defined
++ lane_detector.py: re-implementation of the lane detection software for adding lane lines to the video image
 
 ### Data Preparation and Feature Extraction
 
@@ -50,9 +58,9 @@ The training data was 2 sets of png 64x64 images. Separated into vehicles and no
 
 The images were always rescaled to 0..1 when opened and so any test data would need to also be rescaled to these pixel values when using the trained model for prediction.
 
-As noted in the course notes, matplotlib and opencv have different methods for reading images depending on their type, so it was important to understand when implicit and explicit conversion to 0..1 was needed. For this project, opencv was the sole library used for reading images, which necessitated explicit scaling
+As noted in the course notes, matplotlib and opencv have different methods for reading images depending on their type, so it was important to understand when implicit and explicit conversion to 0..1 was needed. For this project, opencv was the sole library used for reading images during static image processing, which necessitated explicit scaling.
 
-Finally, opencv opens images as BGR not RGB by default, this required color space conversion to be BGR2XXX not RGB2XXX
+Finally, opencv opens images as BGR not RGB by default, this required color space conversion to be BGR2XXX not RGB2XXX for static images. For the video pipeline, the images are opened to RGB by default.
 
 3 main functions were explored for feature extraction:
 
@@ -116,7 +124,7 @@ pixel range: (0..1)
 
 + spatial binning size: 32x32
 + color histogram bins: 16
-+ hog features parameters: all color channels, 9 orientations, 8 pixels per cell, 2 cells per block
++ hog features parameters: All Hog channels, 9 orientations, 8 pixels per cell, 2 cells per block
 
 A function to iterate over the training data is included which creates a single array with each image's feature set for the extraction parameters above. For the training data we end up with 17760 training images, 8792 of which are cars and a feature vector per image of 8412 features.
 
@@ -136,43 +144,86 @@ The saved training data from the feature_extraction notebook was loaded into mem
 + test model: calling the fit model's score method
 
 The 3 classifiers chosen for analysis were:
-+ Support Vector Machine (SVM): default settings showed an accuracy of 97.86%. Training time was quite long (using the pre-canned linearSVC was much quicker)
-+ Gaussian Bayes: default setting showed an accuracy of 81.64%.
-+ Decision Tree: the slowest to train but very quick to predict. Accuracy for the default settings was 94.76%
++ Support Vector Machine (SVM):
+    + Linear SVC: default settings showed an accuracy of 98.59%. Quick training (23s) and testing time (0.17s)
+    + Non-Linear (rbf): Accuracy: 98.59% Slow training (184s) and testing time (44s)
++ Gaussian Bayes: default setting showed an accuracy of 89.64%.
++ Decision Tree: the slowest to train but very quick to predict. Accuracy for the default settings was 96.14%
 
-On that basis, i chose the decision tree and svm to be the models to take forward into hyper-parameter tuning.
+On that basis, i chose the decision tree and linear svm to be the models to take forward into hyper-parameter tuning as each had good initial accuracy and both were fast predictors.
 
 #### hyper-parameter tuning
 
 The basis of hyper-parameter tuning is to cycle through combinations of parameters for each model. This is achieved by using a library function called GridSearchCV. This uses 5-fold cross-validation on each model parameter set and then calculates the best estimator from the score function used for each model.
 
-For SVM: We can tune the kernel, c and gamma parameters giving us a total of 16 combinations (more could be tried). The tuning using GridSearchCV has 5-fold cross-validation of the training data. The training time is roughly 300s x 5 x n, where n is the number of parameter combinations. This resulted in a search time of around 6 hours.
+For Linear SVM: We can tune the c parameter. For various values of 'c' the training time is roughly 22s x 5 x n (values of 'c') as GridSearchCV uses 5 fold cross-validation. This gives a total training time of ~400s.
 
 For Decision Tree: We can tune the criterion, max depth and min samples split parameters giving us 18 combinations and an approximate search time of 7 to 8 hours.
 
 #### best model
 
-The best model after tuning was found to be LinearSVC with c =  and a classification accuracy of ...
-
+The best model after tuning was found to be LinearSVC with c = 0.001 and a classification accuracy of 98.68% however I chose to stick with C=1 as i felt that under unseen video images, the classifier might generalise better and detect fewer false positives.
 
 Using pickle, the best model was saved along with the feature extraction parameters and the standard scalar so that the prediction pipeline could recreate the image pre-processing and feature extraction approach, scale the pipeline images to the same scheme as the trained model and finally re-use the classifier's prediction method to predict which class the pipeline image belongs to
 
 ### Classifying Test Images
 
-A sliding window approach has been implemented, where overlapping tiles in each test image are classified as vehicle or non-vehicle. Some justification has been given for the particular implementation chosen.
+The pipeline used to detect cars on test images (and then video frames) was implemented into a vehicle_detector class which also incorporated the code which allows lane lines to be detected. The code can be found in vehicle_detection.ipynb.
 
-Some discussion is given around how you improved the reliability of the classifier i.e., fewer false positives and more reliable car detections (this could be things like choice of feature vector, thresholding the decision function, hard negative mining etc.)
+The pipeline for vehicle detection was implemented in the ```process_image``` method, the pipeline being:
++ load the feature extraction parameters, model scalar and model for use in image processing
++ create an instance of the detector class and initialise its parameters from the feature extraction parameters
++ for each image passed to process_image():
++ initialise the image:
+    + crop the image to a region of interest - there's little point trying to detect images in the sky so lose the top 40% of the image and bottom 10%
+    + performs a color conversion on the image to match the color space used in feature extraction
+    + Resize the image based on scale parameter (see later for explanation)
+    + Scale the image pixel intensities to 0..1 (this assumes that the input image is scaled 0..255)
++ hog features: hog features are extracted for the entire cropped image created when initialising the image
++ vehicle detection: a sliding window technique is then performed on the initialised image for each scale passed into the detector:
+    + the sliding window operates over the equivalent of multiple overlapping 64x64 sub images of the initialised image
+    + hog features, spatial binning and color histograms are extracted for each 64x64 window to create a flattened feature vector
+    + each window is then processed via the model to scale and then predict whether that window contains a vehicle or not
+    + if the window is deemed to contain a vehicle that window is added to a list of 'vehicle windows' for the entire image
+    + this process continues for each 64x64 window extracted from the image
+    + if more than one scale is passed into the detector, the process is repeated for each scale, where the initial image is scaled by the scale parameter. Scaling allows for the idea that cars vary in size depending on their place in the image and so it makes sense to operate over multiple scales to improve the chances of detecting vehicles of different sizes.
++ heatmap, threshold and draw: once the pipeline is completed a set of boxes for detected images are available for the image. These are processed using a heatmap approach where each image pixel is incremented by 1 for every detected box it falls within. Using a threshold and labels function from sklearn, individual cars can be detected and boxes drawn onto the final output image
+
+For the test images, the various pipeline stages can be seen:
+
+![alt text][image2a]
+![alt text][image2b]
+![alt text][image2c]
+![alt text][image2d]
+![alt text][image2e]
+![alt text][image2f]
+
+The pipeline will detect false positives - where the postive detection is not for a car. Various options exist to reduce the number of false positives on single images:
++ better feature extraction - looking for the combination of features which create a better dataset for training
++ better training data - providing more data for training and/or accounting for the time-series nature of the data used so that the test/train split is done better
++ a more robust model - further model tuning to improve accuracy
 
 ### Video Implementation
 
-The sliding-window search plus classifier has been used to search for and identify vehicles in the videos provided. Video output has been generated with detected vehicle positions drawn (bounding boxes, circles, cubes, etc.) on each frame of video.
+The video implementation differs from the single image implementation only in that the position of detected boxes is averaged over a configurable number of frames.
 
-A method, such as requiring that a detection be found at or near the same position in several subsequent frames, (could be a heat map showing the location of repeat detections) is implemented as a means of rejecting false positives, and this demonstrably reduces the number of false positives. Same or similar method used to draw bounding boxes (or circles, cubes, etc.) around high-confidence detections where multiple overlapping detections occur.
+This averaging takes the form of a collection with a maximum length of n into which all detected windows are added. The threshold function is then used to eliminate detections that appear <= a threshold parameter passed to the vehicle detector.
+
 
 ## Discussion
 
-Discussion includes some consideration of problems/issues faced, what could be improved about their algorithm/pipeline, and what hypothetical cases would cause their pipeline to fail.
+The primary problem for this project was reducing the number of false positives detected by the mode and understanding how each factor in that task interplayed:
++ feature extraction - which features to choose to feed into the model
++ model building - which model to train and tune
++ static image pipeline processing - what thresholds to apply to the heatmap to reduce false positives
++ frame by frame processing - over how many frames and how to integrate detections to remove false positives
 
-## Optional Targets
+The failure modes for this pipeline would be the ability to detect other objects on the road (bicycles, motor-cycles, pedestrians, trucks) as no training data for these images are included in the training data and the model is a single classifier of car / not car.
 
-A stand out submission for this project will be a pipeline that runs in near real time (at least several frames per second on a good laptop) and does a great job of identifying and tracking vehicles in the frame with a minimum of false positives. As an optional challenge, combine this vehicle detection pipeline with the lane finding implementation from the last project! As an additional optional challenge, record your own video and run your pipeline on it to detect vehicles under different conditions.
+It looks also as if different lighting / weather conditions would cause failures as the model seemed to work best on clear, well lit and 'clean' road conditions.
+
+A number of potential Improvements would be to:
++ parallel processing of the multiple scales and also the lane detection to achieve near realtime frame processing
++ increase the training data set and account better for the time-series images in the GTI data and also widen the classification to include different types of object
++
+
