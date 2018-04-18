@@ -2,6 +2,25 @@
 
 Author: david escolme
 Date: April 2018
+Update after review: 18-04-18
+
+## Updated
+
+Review pointed to flaws in detection and false positive removal and links to 4 possible sources of more information. After review, it turned out that the principle reason for failure of this code was not integrating over multiple frames correctly.
+
+The changes were to the process_img method to:
+* extract the image labels and labelled bounding boxes
+* pass the labelled bounding boxes into a deque to average over n frames
+* re-run the thresholding, labelling on the deque collection of labelled bounding boxes with a second threshold value
+* then draw the resulting bounding boxes onto the image
+
+In addition, i updated the code to have a separate static image method (mainly to avoid having multiple if statements) and i reviewed code bottlenecks at a high level and found for a static image the significant timings of each stage were:
+* 0.5 to 1.5s to extract hog features (inverse to scale)
+* 0.1 to 1.25 to run the windows (inverse to scale)
+
+With 2 scales, i achieved only 2.69s per frame. To achieve near realtime would require re-engineering. Lines of attack here could include:
+* Use a GPU enabled model and methods for prediction and feature extraction
+* Try to multi-thread the feature extraction on each scale
 
 ## Preamble
 
