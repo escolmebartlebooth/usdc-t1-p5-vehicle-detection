@@ -6,21 +6,23 @@ Update after review: 18-04-18
 
 ## Updated
 
-Review pointed to flaws in detection and false positive removal and links to 4 possible sources of more information. After review, it turned out that the principle reason for failure of this code was not integrating over multiple frames correctly.
+The project review pointed to flaws in detection and false positive removal and links to 4 possible sources of more information. After reviewing the code, it turned out the reason for the poorer performance was a sub-optimal integration of frames over multiple images.
 
 The changes were to the process_img method to:
-* extract the image labels and labelled bounding boxes
-* pass the labelled bounding boxes into a deque to average over n frames
+* extract the image labels and labelled bounding boxes for each scale separately
+* pass the labelled bounding boxes into a deque to average over n scales and frames
 * re-run the thresholding, labelling on the deque collection of labelled bounding boxes with a second threshold value
 * then draw the resulting bounding boxes onto the image
 
-In addition, i updated the code to have a separate static image method (mainly to avoid having multiple if statements) and i reviewed code bottlenecks at a high level and found for a static image the significant timings of each stage were:
+In addition, I updated the code to have a separate static image method (mainly to avoid having multiple if statements) and I reviewed code bottlenecks at a high level and found for a static image the significant timings of each stage were:
 * 0.5 to 1.5s to extract hog features (inverse to scale)
 * 0.1 to 1.25 to run the windows (inverse to scale)
 
 With 2 scales, i achieved only 2.69s per frame. To achieve near realtime would require re-engineering. Lines of attack here could include:
 * Use a GPU enabled model and methods for prediction and feature extraction
 * Try to multi-thread the feature extraction on each scale
+
+I attempted to run the pipeline against my own video - taken in February during some poor weather. The results can be seen in road3_out.mp4 for a 5 second clip. Some cars and some false positives were detected. Having the Camera on the inside of the windscreen meant it was subject to showing the wipers during precipitation which contributed to false positives.
 
 ## Preamble
 
